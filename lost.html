@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lost & Found Tracker</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #c1dfc4, #deecdd);
+      color: #333;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+      background: white;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      margin-top: 40px;
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #00796b;
+    }
+
+    form {
+      margin-bottom: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"],
+    select,
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+
+    .submit-btn {
+      background-color: #00796b;
+      color: white;
+      border: none;
+      padding: 12px;
+      width: 100%;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .submit-btn:hover {
+      background-color: #004d40;
+    }
+
+    .item {
+      background-color: #f5f5f5;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      border-left: 5px solid #00796b;
+    }
+
+    .item p {
+      margin: 5px 0;
+    }
+
+    .item-image {
+      max-height: 120px;
+      border-radius: 8px;
+      margin-top: 10px;
+      display: block;
+    }
+
+    .match-section {
+      margin-top: 10px;
+      background: #e0f2f1;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    ul {
+      margin: 5px 0 0 15px;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Lost & Found Tracker</h1>
+
+    <form id="reportForm">
+      <div class="form-group">
+        <label for="type">Report Type:</label>
+        <select id="type" required>
+          <option value="Lost">Lost</option>
+          <option value="Found">Found</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Item Description:</label>
+        <input type="text" id="description" placeholder="Describe the item..." required />
+      </div>
+
+      <div class="form-group">
+        <label for="location">Location:</label>
+        <input type="text" id="location" placeholder="Auto-detecting..." required readonly />
+      </div>
+
+      <div class="form-group">
+        <label for="image">Upload Image:</label>
+        <input type="file" id="image" accept="image/*" required />
+        <img id="preview" style="display:none; max-height:150px; margin-top:10px;" />
+      </div>
+
+      <button type="submit" class="submit-btn">Submit Report</button>
+    </form>
+
+    <h2>📋 All Reports</h2>
+    <div id="items"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('reportForm');
+    const itemsDiv = document.getElementById('items');
+    const locationInput = document.getElementById('location');
+    const imageInput = document.getElementById('image');
+    const preview = document.getElementById('preview');
+    let reports = [];
+
+    // Auto-fill geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        locationInput.value = `Lat: ${pos.coords.latitude.toFixed(3)}, Lng: ${pos.coords.longitude.toFixed(3)}`;
+      });
+    }
+
+    // Image preview
+    imageInput.addEventListener('change', function () {
+      const file = imageInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Submit form
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const type = document.getElementById('type').value;
+      const description = document.getElementById('description').value;
+      const location = locationInput.value;
+      const imageSrc = preview.src;
+
+      const report = {
+        type,
+        description,
+        location,
+        imageSrc,
+        time: new Date().toLocaleString()
+      };
+
+      reports.push(report);
+      displayReports();
+      form.reset();
+      preview.style.display = 'none';
+    });
+
+    // Display all reports
+    function displayReports() {
+      itemsDiv.innerHTML = '';
+      reports.forEach(item => {
+        const matches = findMatches(item);
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = `
+          <strong>${item.type}</strong>
+          <p><em>${item.description}</em></p>
+          <p><span>📍</span> ${item.location}</p>
+          <p><span>🕒</span> ${item.time}</p>
+          <img src="${item.imageSrc}" class="item-image"/>
+          ${
+            matches.length > 0
+              ? `<div class="match-section"><strong>🔗 Possible Matches:</strong><ul>${matches
+                  .map(m => `<li>${m.description}</li>`)
+                  .join('')}</ul></div>`
+              : ''
+          }
+        `;
+        itemsDiv.appendChild(div);
+      });
+    }
+
+    // Basic AI Matching
+    function findMatches(newItem) {
+      const keyword = newItem.description.toLowerCase();
+      return reports.filter(
+        r =>
+          r !== newItem &&
+          r.type !== newItem.type &&
+          r.description.toLowerCase().includes(keyword)
+      );
+    }
+  </script>
+</body>
+</html>
